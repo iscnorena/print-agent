@@ -1,0 +1,22 @@
+# Copy this file to config.yaml and edit it.
+
+# Exact name from: python agent.py --list-printers
+printer_name: "Brother DCP-T720DW"
+
+# Windows only: path to SumatraPDF.exe (portable or installed)
+sumatra_path: "C:\\Program Files\\SumatraPDF\\SumatraPDF.exe"
+
+# Paper size forced on every job: letter | legal | a4
+paper: "letter"
+
+# Backend polling (python agent.py --run)
+api_base_url: "http://localhost:8000"
+# Prefer AGENT_TOKEN in agent/.env; this value is only used when that is empty.
+agent_token: ""
+poll_interval_seconds: 5
+heartbeat_interval_seconds: 60
+download_dir: "downloads"
+# Local record of handled jobs, so nothing is printed twice
+state_file: "state.json"
+
+log_dir: "logs"
