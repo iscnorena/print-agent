@@ -49,24 +49,22 @@ Si después de una actualización un botón no responde, recarga la página con 
 
 ## 4. Probar desde el celular (ngrok)
 
-Liga pública (dominio fijo gratuito de ngrok):
+Se usa el dominio fijo gratuito de la cuenta de ngrok. Se consulta en https://dashboard.ngrok.com/domains y no se escribe en el repo. Abajo aparece como `<tu-dominio>.ngrok-free.dev`.
 
-**https://unedited-straddle-moneybags.ngrok-free.dev**
-
-- Cliente: https://unedited-straddle-moneybags.ngrok-free.dev/subir
-- Mostrador: https://unedited-straddle-moneybags.ngrok-free.dev/print
+- Cliente: `https://<tu-dominio>.ngrok-free.dev/subir`
+- Mostrador: `https://<tu-dominio>.ngrok-free.dev/print`
 
 Con el backend corriendo, abre el túnel en otra terminal de WSL:
 
 ```bash
-ngrok http 8000 --url=unedited-straddle-moneybags.ngrok-free.dev
+ngrok http 8000 --url=<tu-dominio>.ngrok-free.dev
 ```
 
 - El dominio va tal cual, terminado en `.ngrok-free.dev`. Si le agregas algo más, ngrok responde `ERR_NGROK_313` (subdominio personalizado, solo planes de pago).
 - Solo puede haber un túnel abierto a la vez con este dominio.
 - La primera visita desde un navegador muestra un aviso de ngrok; presiona **Visit Site**.
 - Mientras el túnel esté abierto, cualquiera con la liga puede usar `/subir` (limitado a 10 envíos por minuto). `/print` sigue pidiendo contraseña. **Cierra el túnel con Ctrl+C al terminar de probar.**
-- Esta misma liga será la Callback URL del webhook de WhatsApp (Fase 3): `https://unedited-straddle-moneybags.ngrok-free.dev/webhook/whatsapp`.
+- Esta misma liga será la Callback URL del webhook de WhatsApp (Fase 3): `https://<tu-dominio>.ngrok-free.dev/webhook/whatsapp`.
 
 Instalación (ya hecha en esta PC): binario en `~/.local/bin/ngrok`. El authtoken de la cuenta se configura una vez con `ngrok config add-authtoken <token>`. El token es secreto y no va en el repo.
 

@@ -76,7 +76,7 @@ Tests: **101 del backend** (Pest) y **32 del agente** (pytest); todos pasan.
 
 ## Pendientes y siguientes pasos
 
-1. **Fase 3, WhatsApp.** Faltan del lado de Meta el Phone Number ID, el Business Account ID, el token de acceso y el App Secret, que van en `backend/.env` (`WHATSAPP_*`). La Callback URL será `https://unedited-straddle-moneybags.ngrok-free.dev/webhook/whatsapp`.
+1. **Fase 3, WhatsApp.** Faltan del lado de Meta el Phone Number ID, el Business Account ID, el token de acceso y el App Secret, que van en `backend/.env` (`WHATSAPP_*`). La Callback URL será `https://<tu-dominio>.ngrok-free.dev/webhook/whatsapp`.
 2. **Fase 4, conversión de archivos.** Requiere instalar LibreOffice, Ghostscript y poppler en WSL.
 3. **Página de clientes.** Más adelante: inicio de sesión con código por WhatsApp, precios y vista previa (Fases 5 y 9a).
 4. **Operación.** El agente en Windows corre desde una copia en `C:\agente\agent` que hay que actualizar a mano tras cambios en `agent/`. Conviene automatizarlo o instalarlo como servicio.
