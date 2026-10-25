@@ -6,6 +6,11 @@
     @if (session('status'))
         <div class="alert alert-ok">{{ session('status') }}</div>
     @endif
+    @if ($errors->queue->any())
+        <div class="alert alert-error">
+            @foreach ($errors->queue->all() as $message) <div>{{ $message }}</div> @endforeach
+        </div>
+    @endif
 
     <div class="card">
         <h1>Imprimir un PDF</h1>
@@ -75,6 +80,40 @@
             @include('operator.print-jobs._list')
         </div>
     </div>
+
+    {{-- Outside #jobs so the live refresh does not wipe it while open. --}}
+    <dialog id="queue-dialog">
+        <form id="queue-form" method="POST">
+            @csrf
+            <h2 id="queue-title"></h2>
+            <p id="queue-file" class="muted" style="margin-top: -.5rem; word-break: break-word;"></p>
+            <div class="grid">
+                <div class="field">
+                    <label for="queue-copies">Copias</label>
+                    <input id="queue-copies" type="number" name="copies" min="1" max="100" required>
+                </div>
+                <div class="field">
+                    <label for="queue-duplex">Caras</label>
+                    <select id="queue-duplex" name="duplex">
+                        <option value="simplex">Una cara</option>
+                        <option value="long">Doble cara (borde largo)</option>
+                        <option value="short">Doble cara (borde corto)</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="queue-pages">Páginas <span class="hint">· vacío = todas</span></label>
+                    <input id="queue-pages" type="text" name="page_range" placeholder="1-3, 5" inputmode="numeric">
+                </div>
+            </div>
+            <div class="field">
+                <label class="check"><input id="queue-color" type="checkbox" name="color" value="1"> A color</label>
+            </div>
+            <div style="display: flex; gap: .5rem; justify-content: flex-end;">
+                <button type="button" class="btn-link" id="queue-cancel">Cancelar</button>
+                <button type="submit">Imprimir</button>
+            </div>
+        </form>
+    </dialog>
 @endsection
 
 @push('scripts')
@@ -104,10 +143,33 @@
                 });
             }
 
-            // Refresh the jobs table so status changes (en cola → impreso) show up live.
+            // "Imprimir" on a customer's job: confirm or adjust their options first.
             const jobs = document.getElementById('jobs');
+            const dialog = document.getElementById('queue-dialog');
+            const queueForm = document.getElementById('queue-form');
+            jobs.addEventListener('click', (event) => {
+                const button = event.target.closest('.js-queue');
+                if (!button) return;
+                const data = button.dataset;
+                queueForm.action = data.url;
+                document.getElementById('queue-title').textContent = `Imprimir folio #${data.folio}`;
+                document.getElementById('queue-file').textContent = data.name;
+                document.getElementById('queue-copies').value = data.copies;
+                document.getElementById('queue-duplex').value = data.duplex;
+                document.getElementById('queue-pages').value = data.pages;
+                document.getElementById('queue-color').checked = data.color === '1';
+                dialog.showModal();
+            });
+            document.getElementById('queue-cancel').addEventListener('click', () => dialog.close());
+            queueForm.addEventListener('submit', () => {
+                const button = queueForm.querySelector('button[type=submit]');
+                button.disabled = true;
+                button.textContent = 'Enviando…';
+            });
+
+            // Refresh the jobs table so status changes (en cola → impreso) show up live.
             setInterval(async () => {
-                if (document.hidden) return;
+                if (document.hidden || dialog.open) return;
                 try {
                     const response = await fetch(jobs.dataset.url, { headers: { Accept: 'text/html' } });
                     // Session expired: reload so the login page shows instead of being injected here.

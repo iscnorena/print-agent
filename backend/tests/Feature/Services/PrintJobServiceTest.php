@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\Channel;
+use App\Enums\Duplex;
 use App\Enums\PrintJobStatus;
 use App\Enums\PrintMode;
 use App\Exceptions\InvalidStatusTransition;
+use App\Models\Customer;
 use App\Models\Location;
 use App\Models\Printer;
 use App\Models\PrintJob;
@@ -29,8 +32,17 @@ describe('confirm', function () {
             ->printer_id->toBeNull();
     });
 
-    it('assigns a folio', function () {
-        $job = quotedJobAt(PrintMode::Manual);
+    it('assigns a folio with the last four digits of the customer phone', function () {
+        $customer = Customer::factory()->create(['phone' => '7441234521']);
+        $job = quotedJobAt(PrintMode::Manual, ['customer_id' => $customer->id]);
+
+        app(PrintJobService::class)->confirm($job);
+
+        expect($job->fresh()->folio)->toBe("{$job->id}-4521");
+    });
+
+    it('uses just the job number as folio when there is no customer phone', function () {
+        $job = quotedJobAt(PrintMode::Manual, ['customer_id' => null]);
 
         app(PrintJobService::class)->confirm($job);
 
@@ -136,5 +148,41 @@ describe('expire', function () {
 
         expect($job->fresh()->status)->toBe(PrintJobStatus::Expired);
         Storage::disk('local')->assertMissing(['originals/a.docx', 'print-jobs/a.pdf']);
+    });
+});
+
+describe('submitForCustomer', function () {
+    beforeEach(fn () => Storage::fake('local'));
+
+    it('stores the PDF and leaves the job ready with a phone folio in manual mode', function () {
+        $location = Location::factory()->printMode(PrintMode::Manual)->create();
+        Printer::factory()->create(['location_id' => $location->id]);
+        $customer = Customer::factory()->create(['phone' => '7441234521']);
+
+        $job = app(PrintJobService::class)->submitForCustomer(
+            $location, $customer, '%PDF-1.4', 'tarea.pdf', Channel::Web, ['copies' => 3, 'duplex' => Duplex::Long],
+        );
+
+        expect($job->fresh())
+            ->status->toBe(PrintJobStatus::Ready)
+            ->customer_id->toBe($customer->id)
+            ->folio->toBe("{$job->id}-4521")
+            ->copies->toBe(3)
+            ->duplex->toBe(Duplex::Long)
+            ->printer_id->toBeNull();
+        Storage::disk('local')->assertExists($job->pdf_path);
+    });
+
+    it('queues the job right away in auto mode', function () {
+        $location = Location::factory()->printMode(PrintMode::Auto)->create();
+        $printer = Printer::factory()->create(['location_id' => $location->id]);
+
+        $job = app(PrintJobService::class)->submitForCustomer(
+            $location, Customer::factory()->create(), '%PDF-1.4', 'tarea.pdf', Channel::Web,
+        );
+
+        expect($job->fresh())
+            ->status->toBe(PrintJobStatus::Queued)
+            ->printer_id->toBe($printer->id);
     });
 });

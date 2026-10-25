@@ -55,6 +55,9 @@
         .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .3rem; background: var(--error); }
         .dot-on { background: var(--ok); }
         .muted { color: var(--muted); }
+        dialog { width: min(520px, calc(100vw - 2rem)); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; background: var(--surface); color: var(--text); }
+        dialog::backdrop { background: rgb(0 0 0 / .45); }
+        .js-queue { padding: .45rem .9rem; }
     </style>
 </head>
 <body>

@@ -57,6 +57,22 @@ class PrintJob extends Model
     }
 
     /**
+     * Give the job its counter folio once: the job number, plus the last four
+     * digits of the customer's phone when there is one (e.g. "125-4521"), so the
+     * counter can confirm it is the right person.
+     */
+    public function assignFolio(): void
+    {
+        if ($this->folio !== null) {
+            return;
+        }
+
+        $phone = $this->customer?->phone;
+        $this->folio = $phone === null ? (string) $this->id : $this->id.'-'.substr($phone, -4);
+        $this->save();
+    }
+
+    /**
      * Oldest queued job first, so customers are served in order.
      */
     #[Scope]

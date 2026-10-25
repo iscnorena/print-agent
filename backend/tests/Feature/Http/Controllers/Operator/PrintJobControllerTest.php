@@ -3,6 +3,7 @@
 use App\Enums\Channel;
 use App\Enums\Duplex;
 use App\Enums\PrintJobStatus;
+use App\Models\Customer;
 use App\Models\Printer;
 use App\Models\PrintJob;
 use App\Models\User;
@@ -26,6 +27,14 @@ it('sends guests to the login page', function (string $method, string $route) {
     'list' => ['GET', 'operator.print-jobs.list'],
     'store' => ['POST', 'operator.print-jobs.store'],
 ]);
+
+it('sends guests trying to print a waiting job to the login page', function () {
+    $job = PrintJob::factory()->status(PrintJobStatus::Ready)->create();
+
+    $this->post(route('operator.print-jobs.queue', $job))->assertRedirect(route('login'));
+
+    expect($job->fresh()->status)->toBe(PrintJobStatus::Ready);
+});
 
 describe('index', function () {
     it('shows active printers with their connection state and the latest jobs', function () {
@@ -167,5 +176,68 @@ describe('store', function () {
                 'duplex' => 'simplex',
             ])
             ->assertSessionHasErrors(['printer_id' => 'Elige una impresora activa.']);
+    });
+});
+
+describe('queue', function () {
+    beforeEach(function () {
+        $this->customer = Customer::factory()->create(['phone' => '7441234521', 'profile_name' => 'Ana']);
+        $this->job = PrintJob::factory()->status(PrintJobStatus::Ready)->create([
+            'location_id' => $this->printer->location_id,
+            'customer_id' => $this->customer->id,
+            'folio' => '7-4521',
+            'copies' => 1,
+            'color' => false,
+        ]);
+    });
+
+    it('shows an Imprimir button with the customer for jobs waiting in ready', function () {
+        $this->actingAs(User::factory()->create())
+            ->get(route('operator.print-jobs.list'))
+            ->assertSee('#7-4521')
+            ->assertSee('Ana')
+            ->assertSee('744 123 4521')
+            ->assertSee(route('operator.print-jobs.queue', $this->job));
+    });
+
+    it('applies the operator options and sends the job to the location printer', function () {
+        $this->actingAs(User::factory()->create())
+            ->post(route('operator.print-jobs.queue', $this->job), [
+                'copies' => 3,
+                'color' => '1',
+                'duplex' => 'short',
+                'page_range' => '2',
+            ])
+            ->assertRedirect(route('operator.print-jobs.index'))
+            ->assertSessionHas('status', 'Folio #7-4521 enviado a Brother casa.');
+
+        expect($this->job->fresh())
+            ->status->toBe(PrintJobStatus::Queued)
+            ->printer_id->toBe($this->printer->id)
+            ->copies->toBe(3)
+            ->color->toBeTrue()
+            ->duplex->toBe(Duplex::Short)
+            ->page_range->toBe('2');
+    });
+
+    it('does not print a job that is no longer waiting', function () {
+        $this->job->forceFill(['status' => PrintJobStatus::Queued])->save();
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('operator.print-jobs.queue', $this->job), ['copies' => 5, 'duplex' => 'simplex'])
+            ->assertRedirect(route('operator.print-jobs.index'))
+            ->assertSessionHasErrorsIn('queue', ['job' => 'El folio #7-4521 ya no está esperando para imprimirse.']);
+
+        expect($this->job->fresh()->copies)->toBe(1);
+    });
+
+    it('rejects color when the location printer is black and white', function () {
+        $this->printer->update(['supports_color' => false]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('operator.print-jobs.queue', $this->job), ['copies' => 1, 'color' => '1', 'duplex' => 'simplex'])
+            ->assertSessionHasErrorsIn('queue', ['color' => 'Esta impresora solo imprime en blanco y negro.']);
+
+        expect($this->job->fresh()->status)->toBe(PrintJobStatus::Ready);
     });
 });

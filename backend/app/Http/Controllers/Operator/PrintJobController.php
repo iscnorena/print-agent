@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Operator;
 
 use App\Enums\Channel;
 use App\Enums\PrinterStatus;
+use App\Enums\PrintJobStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\QueuePrintJobRequest;
 use App\Http\Requests\Operator\StorePrintJobRequest;
 use App\Models\Printer;
 use App\Models\PrintJob;
@@ -53,10 +55,30 @@ class PrintJobController extends Controller
     }
 
     /**
+     * "Imprimir" on a customer's job waiting in "ready": apply the operator's
+     * final options and send it to the printer.
+     */
+    public function queue(QueuePrintJobRequest $request, PrintJob $job, PrintJobService $service): RedirectResponse
+    {
+        if ($job->status !== PrintJobStatus::Ready) {
+            return redirect()
+                ->route('operator.print-jobs.index')
+                ->withErrors(['job' => "El folio #{$job->folio} ya no está esperando para imprimirse."], 'queue');
+        }
+
+        $job->update($request->printOptions());
+        $service->queue($job);
+
+        return redirect()
+            ->route('operator.print-jobs.index')
+            ->with('status', "Folio #{$job->folio} enviado a {$job->printer->name}.");
+    }
+
+    /**
      * @return Collection<int, PrintJob>
      */
     private function recentJobs(): Collection
     {
-        return PrintJob::query()->with('printer')->latest('id')->limit(15)->get();
+        return PrintJob::query()->with(['printer', 'customer'])->latest('id')->limit(15)->get();
     }
 }

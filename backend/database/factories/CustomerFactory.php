@@ -17,8 +17,11 @@ class CustomerFactory extends Factory
      */
     public function definition(): array
     {
+        $phone = '744'.fake()->unique()->numerify('#######');
+
         return [
-            'wa_id' => '521744'.fake()->unique()->numerify('#######'),
+            'wa_id' => '521'.$phone,
+            'phone' => $phone,
             'profile_name' => fake()->firstName(),
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PrinterStatus;
 use App\Enums\PrintMode;
 use Database\Factories\LocationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -21,6 +22,31 @@ class Location extends Model
     public function printers(): HasMany
     {
         return $this->hasMany(Printer::class);
+    }
+
+    /**
+     * Location that receives uploads from the public customer page. Until each
+     * business gets its own QR link (phase 8) that is the first active one.
+     */
+    public static function forCustomerUploads(): ?self
+    {
+        return self::query()->where('is_active', true)->orderBy('id')->first();
+    }
+
+    /**
+     * Printer that takes jobs not assigned to a specific one.
+     */
+    public function defaultPrinter(): ?Printer
+    {
+        return $this->printers()->where('status', PrinterStatus::Active)->orderBy('id')->first();
+    }
+
+    public function supportsColor(): bool
+    {
+        return $this->printers()
+            ->where('status', PrinterStatus::Active)
+            ->where('supports_color', true)
+            ->exists();
     }
 
     /**
