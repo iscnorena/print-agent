@@ -51,6 +51,15 @@ class Printer extends Model
     }
 
     /**
+     * Whether the agent has sent a heartbeat recently.
+     */
+    public function isOnline(): bool
+    {
+        return $this->last_seen_at !== null
+            && $this->last_seen_at->gt(now()->subSeconds(config('printing.agent_offline_after_seconds')));
+    }
+
+    /**
      * @return BelongsTo<Location, $this>
      */
     public function location(): BelongsTo

@@ -17,6 +17,26 @@ enum PrintJobStatus: string
     case Expired = 'expired';
 
     /**
+     * Name shown to operators.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Received => 'Recibido',
+            self::Processing => 'Procesando',
+            self::Quoted => 'Cotizado',
+            self::Confirmed => 'Confirmado',
+            self::Ready => 'Listo',
+            self::Queued => 'En cola',
+            self::Printing => 'Imprimiendo',
+            self::Printed => 'Impreso',
+            self::Failed => 'Falló',
+            self::Cancelled => 'Cancelado',
+            self::Expired => 'Expirado',
+        };
+    }
+
+    /**
      * Statuses this one may move to.
      *
      * @return list<self>

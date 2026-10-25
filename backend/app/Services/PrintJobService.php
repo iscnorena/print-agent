@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
+use App\Enums\Channel;
+use App\Enums\Duplex;
 use App\Enums\PrinterStatus;
 use App\Enums\PrintJobStatus;
 use App\Enums\PrintMode;
 use App\Exceptions\InvalidStatusTransition;
+use App\Models\Printer;
 use App\Models\PrintJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -53,6 +57,36 @@ class PrintJobService
 
             return $job->setRawAttributes($locked->getAttributes(), true);
         });
+    }
+
+    /**
+     * Store a PDF and send it straight to a printer, skipping the customer flow
+     * (operator upload, test command). The operator is present, so print_mode does not apply.
+     *
+     * @param  array{copies?: int, color?: bool, duplex?: Duplex, page_range?: ?string}  $options
+     */
+    public function queueDirect(Printer $printer, string $pdfContents, string $originalName, Channel $channel, array $options = []): PrintJob
+    {
+        $pdfPath = 'print-jobs/'.Str::uuid().'.pdf';
+        Storage::disk(config('printing.disk'))->put($pdfPath, $pdfContents);
+
+        $job = new PrintJob([
+            'channel' => $channel,
+            'location_id' => $printer->location_id,
+            'printer_id' => $printer->id,
+            'original_name' => $originalName,
+            'pdf_path' => $pdfPath,
+            'page_range' => $options['page_range'] ?? null,
+            'copies' => max(1, $options['copies'] ?? 1),
+            'color' => $options['color'] ?? false,
+            'duplex' => $options['duplex'] ?? Duplex::Simplex,
+        ]);
+        $job->status = PrintJobStatus::Confirmed;
+        $job->save();
+        $job->folio = (string) $job->id;
+        $job->save();
+
+        return $this->queue($job);
     }
 
     /**

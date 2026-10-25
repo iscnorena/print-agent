@@ -4,15 +4,11 @@ namespace App\Console\Commands;
 
 use App\Enums\Channel;
 use App\Enums\Duplex;
-use App\Enums\PrintJobStatus;
 use App\Models\Printer;
-use App\Models\PrintJob;
 use App\Services\PrintJobService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 #[Signature('job:create-test
     {pdf : Path to a local PDF file}
@@ -59,26 +55,12 @@ class CreateTestJob extends Command
             return self::FAILURE;
         }
 
-        $pdfPath = 'print-jobs/'.Str::uuid().'.pdf';
-        Storage::disk(config('printing.disk'))->put($pdfPath, file_get_contents($source));
-
-        $job = new PrintJob([
-            'channel' => Channel::Web,
-            'location_id' => $printer->location_id,
-            'printer_id' => $printer->id,
-            'original_name' => basename($source),
-            'pdf_path' => $pdfPath,
+        $job = $service->queueDirect($printer, file_get_contents($source), basename($source), Channel::Web, [
             'page_range' => $this->option('pages'),
-            'copies' => max(1, (int) $this->option('copies')),
+            'copies' => (int) $this->option('copies'),
             'color' => $color,
             'duplex' => $duplex,
         ]);
-        $job->status = PrintJobStatus::Confirmed;
-        $job->save();
-        $job->folio = (string) $job->id;
-        $job->save();
-
-        $service->queue($job);
 
         $this->info("Job #{$job->id} queued on printer \"{$printer->name}\".");
 
